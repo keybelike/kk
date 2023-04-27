@@ -167,21 +167,22 @@ void loop() {
     // 执行光敏电阻控制LED灯亮度的代码
     int ldrValue = analogRead(ldrPin); // 读取光敏电阻的模拟值，范围是0-1023
     int ledValue = 0; // LED灯的PWM占空比
-    // 根据光敏电阻的模拟值分成5个区间，对应不同的LED灯亮度
+    // 根据光敏电阻的模拟值分成5个区间，对应不同的LED灯亮度 
+    Serial.println(ldrValue); 
    if (ldrValue >= 0 && ldrValue <= 200) {
-    Serial.print(ldrValue+"/");
+    
       ledValue = 50;
             analogWrite(LED_PIN, ledValue);
-    } else if (ldrValue > 200 && ldrValue <= 400) {Serial.print(ldrValue+"/");
+    } else if (ldrValue > 200 && ldrValue <= 400) {
       ledValue = 100;
             analogWrite(LED_PIN, ledValue);
-    } else if (ldrValue > 400 && ldrValue <= 600) {Serial.print(ldrValue+"/");
+    } else if (ldrValue > 400 && ldrValue <= 600) {
       ledValue = 150;
             analogWrite(LED_PIN, ledValue);
-    } else if (ldrValue > 600 && ldrValue <= 800) {Serial.print(ldrValue+"/");
+    } else if (ldrValue > 600 && ldrValue <= 800) {
       ledValue = 200;
             analogWrite(LED_PIN, ledValue);
-    } else if (ldrValue > 800 && ldrValue <= 1023) {Serial.print(ldrValue+"/");
+    } else if (ldrValue > 800 && ldrValue <= 1023) {
       ledValue = 255;
             analogWrite(LED_PIN, ledValue);
     }
