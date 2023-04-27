@@ -1,0 +1,182 @@
+// 定义使用WiFi和小爱同学的灯光模式#define BLINKER_WIFI
+#define BLINKER_WIFI
+#define BLINKER_MIOT_LIGHT
+#include <Blinker.h>
+#define LED_PIN D6 //定义led灯的引脚，并选择一个支持PWM输出的引脚
+#define BUTTON_real D7 //定义按钮的引脚
+#define ldrPin A0 // 光敏电阻连接到A0引脚
+#define interval 3000 // 3分钟的毫秒数
+
+char auth[] = "c47c7eda18fb";
+char ssid[] = "kebi";
+char pswd[] = "1322707083";
+
+BlinkerButton Button1("btn1");
+BlinkerButton Button2("btn_up");
+
+unsigned long lastActionTime = 0; // 上一次操作的时间
+
+int ledValue = 0; //定义一个变量来存储LED的亮度值，初始为0
+int step = 51; //定义一个变量来表示每次按按钮时LED亮度增加的值，可以根据需要调整
+bool buttonState = false; //定义一个变量来存储按钮的状态，初始为false
+
+void button1_callback(const String & state) {
+// 如果有虚拟按钮操作发生，更新lastActionTime为当前时间
+  lastActionTime = millis();
+    BLINKER_LOG("get button state: ", state); //注释掉BLINKER_LOG函数
+    if (state=="on") {
+        analogWrite(LED_PIN, 255); //使用analogWrite函数
+        Button1.print("on"); //反馈开关状态
+    } else if(state=="off"){
+        analogWrite(LED_PIN, 0); //使用analogWrite函数
+        Button1.print("off"); //反馈开关状态
+
+    }
+}
+
+void button2_callback(const String & state) {
+// 如果有虚拟按钮操作发生，更新lastActionTime为当前时间
+  lastActionTime = millis();
+    BLINKER_LOG("get button state: ", state); //打印按钮的状态
+    if (state=="tap") { //如果按钮被点击
+        ledValue += step; //增加LED的亮度值
+        if (ledValue > 255) { //如果超过最大值255
+            ledValue = 0; //重置为0
+            Button1.print("off"); //反馈开关状态
+        }else 
+            Button1.print("on"); //反馈开关状态
+        analogWrite(LED_PIN, ledValue); //使用analogWrite函数控制LED的亮度
+    }
+}
+
+// 定义数据读取的回调函数，用来接收Blinker APP发送的数据
+void dataRead(const String & data)
+{
+  // 打印接收到的数据
+  BLINKER_LOG("Blinker readString: ", data);
+
+  // 获取当前时间戳
+  uint32_t BlinkerTime = millis();
+
+  // 向Blinker APP发送时间戳数据
+  Blinker.print("millis", BlinkerTime);
+}
+
+// 定义小爱同学电源状态的回调函数，用来接收小爱同学发送的控制命令
+void miotPowerState(const String & state)
+{
+  // 如果有语音操作发生，更新lastActionTime为当前时间
+  lastActionTime = millis();
+  // 打印接收到的命令
+  BLINKER_LOG("need set power state: ", state);
+
+  // 判断命令是打开还是关闭
+  if (state == BLINKER_CMD_ON) {
+    // 将LED灯引脚设置为高电平，点亮LED灯
+    analogWrite(LED_PIN, 255);
+    // 向小爱同学反馈电源状态为打开
+    BlinkerMIOT.powerState("on");
+    Button1.print("on"); //反馈开关状态
+    // 发送反馈数据
+    BlinkerMIOT.print();
+    // 更新LED灯状态变量为真
+    buttonState = true;
+  }
+  else if (state == BLINKER_CMD_OFF) {
+    // 将LED灯引脚设置为低电平，熄灭LED灯
+    analogWrite(LED_PIN, 0);
+    // 向小爱同学反馈电源状态为关闭
+    BlinkerMIOT.powerState("off");
+    Button1.print("off"); //反馈开关状态
+    // 发送反馈数据
+    BlinkerMIOT.print();
+    // 更新LED灯状态变量为假
+    buttonState = false;
+  }
+}
+
+// 定义小爱同学查询的回调函数，用来接收小爱同学发送的查询命令
+void miotQuery(int32_t queryCode)
+{
+  // 如果有语音操作发生，更新lastActionTime为当前时间
+  lastActionTime = millis();
+  // 打印接收到的查询码
+  BLINKER_LOG("MIOT Query codes: ", queryCode);
+
+  // 判断查询码是什么类型
+  switch (queryCode)
+  {
+    // 如果是查询电源状态的查询码
+    case BLINKER_CMD_QUERY_POWERSTATE_NUMBER :
+      // 打印查询电源状态的信息
+      BLINKER_LOG("MIOT Query Power State");
+      // 向小爱同学反馈当前LED灯的电源状态，根据LED灯状态变量判断是打开还是关闭
+      BlinkerMIOT.powerState(buttonState ? "on" : "off");
+      // 发送反馈数据
+      BlinkerMIOT.print();
+      break;
+
+    // 如果是其他类型的查询码，默认返回当前LED灯的电源状态
+    default :
+      // 向小爱同学反馈当前LED灯的电源状态，根据LED灯状态变量判断是打开还是关闭
+      BlinkerMIOT.powerState(buttonState ? "on" : "off");
+      // 发送反馈数据
+      BlinkerMIOT.print();
+      break;
+  }
+}
+
+void setup() {
+    Serial.begin(115200);
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(BUTTON_real, INPUT_PULLUP); //设置按钮引脚为输入模式，并启用内部上拉电阻
+    pinMode(ldrPin, INPUT); // 设置光敏电阻为输入模式
+    analogWrite(LED_PIN, 0); //与buttonState变量保持一致
+    Blinker.begin(auth, ssid, pswd); //初始化blinker库
+    
+    Button1.print("off"); //反馈开关状态
+    // 注册数据读取的回调函数，当Blinker APP发送数据时触发
+    Blinker.attachData(dataRead);
+    // 注册小爱同学电源状态的回调函数，当小爱同学发送控制命令时触发
+  BlinkerMIOT.attachPowerState(miotPowerState);
+  // 注册小爱同学查询的回调函数，当小爱同学发送查询命令时触发
+  BlinkerMIOT.attachQuery(miotQuery);
+    Button2.attach(button2_callback); //将回调函数绑定到按钮控件上
+    Button1.attach(button1_callback); //将回调函数绑定到开关控件
+}
+ 
+void loop() {
+    Blinker.run(); //运行blinker库
+     bool currentState = digitalRead(BUTTON_real); //读取按钮引脚的电平状态，高电平为true，低电平为false
+    if (currentState != buttonState) { //如果当前状态与之前状态不同，说明按钮发生了变化
+        buttonState = currentState; //更新按钮状态变量
+        if (buttonState == false) { //如果当前状态为false，说明按钮被按下（因为是上拉电阻，所以按下时为低电平）
+            // 如果有按键操作发生，更新lastActionTime为当前时间
+  lastActionTime = millis();
+            ledValue += step; //增加LED的亮度值
+            if (ledValue > 255) { //如果超过最大值255
+                ledValue = 0; //重置为0
+                Button1.print("off"); //反馈开关状态
+            }else 
+            Button1.print("on"); //反馈开关状态
+            analogWrite(LED_PIN, ledValue); //使用analogWrite函数控制LED的亮度
+        }
+    }
+    // 检测当前时间和lastActionTime的差值是否超过了3分钟
+  if (millis() - lastActionTime > interval) {
+    // 执行光敏电阻控制LED灯亮度的代码
+    int ldrValue = analogRead(ldrPin); // 读取光敏电阻的模拟值，范围是0-1023
+    int ledValue = 0; // LED灯的PWM占空比
+    // 根据光敏电阻的模拟值分成5个区间，对应不同的LED灯亮度
+   if (ldrValue >= 0 && ldrValue <= 200) {
+      ledValue = 50;
+    } else if (ldrValue > 200 && ldrValue <= 400) {
+      ledValue = 100;
+    } else if (ldrValue > 400 && ldrValue <= 600) {
+      ledValue = 150;
+    } else if (ldrValue > 600 && ldrValue <= 800) {
+      ledValue = 200;
+    } else if (ldrValue > 800 && ldrValue <= 1023) {
+      ledValue = 255;
+    }
+}}
